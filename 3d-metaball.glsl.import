@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://y8pcg2c4rade"
+path="res://.godot/imported/3d-metaball.glsl-22239d4f3744c15c98b93ae73d6af88f.res"
+
+[deps]
+
+source_file="res://3d-metaball.glsl"
+dest_files=["res://.godot/imported/3d-metaball.glsl-22239d4f3744c15c98b93ae73d6af88f.res"]
+
+[params]
+

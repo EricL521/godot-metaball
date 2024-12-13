@@ -1,0 +1,54 @@
+[gd_scene load_steps=9 format=3 uid="uid://clyy21ye83wxa"]
+
+[ext_resource type="Shader" path="res://2d-metaball.gdshader" id="1_qnn1f"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lokfs"]
+shader = ExtResource("1_qnn1f")
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_8nc22"]
+viewport_path = NodePath("Sprite2D/SubViewport")
+
+[sub_resource type="Curve" id="Curve_7mh5n"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 1, Vector2(0.152406, 1), 0.0, 0.0, 0, 0, Vector2(0.649733, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 4
+
+[sub_resource type="CurveTexture" id="CurveTexture_ysdlb"]
+curve = SubResource("Curve_7mh5n")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_u8v3r"]
+particle_flag_disable_z = true
+spread = 180.0
+initial_velocity_min = 150.0
+initial_velocity_max = 200.0
+gravity = Vector3(0, 0, 0)
+scale_curve = SubResource("CurveTexture_ysdlb")
+
+[sub_resource type="Gradient" id="Gradient_r31yq"]
+offsets = PackedFloat32Array(0, 0.5, 0.75, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.588235, 1, 1, 1, 0.212418, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_tdbs8"]
+gradient = SubResource("Gradient_r31yq")
+width = 150
+height = 150
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[node name="2d-metaball" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+material = SubResource("ShaderMaterial_lokfs")
+position = Vector2(500, 500)
+texture = SubResource("ViewportTexture_8nc22")
+
+[node name="SubViewport" type="SubViewport" parent="Sprite2D"]
+transparent_bg = true
+size = Vector2i(1000, 1000)
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="Sprite2D/SubViewport"]
+position = Vector2(500, 500)
+amount = 25
+process_material = SubResource("ParticleProcessMaterial_u8v3r")
+texture = SubResource("GradientTexture2D_tdbs8")
+lifetime = 2.0
