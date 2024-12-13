@@ -4,8 +4,9 @@
 // Constants (adjust as needed)
 #define MAX_DISTANCE 200
 #define MIN_DISTANCE 0.01
+// a lower max_steps results in a thicker outline
 #define MAX_STEPS 25
-#define MAX_STEPS_PER_UNIT 0
+#define DRAW_OUTLINE true
 
 // Structs
 struct Ray {
@@ -44,31 +45,28 @@ layout(set = 4, binding = 4, std430) readonly buffer SphereBuffer {
 
 
 // Helper functions (most from https://github.com/SebLague/Ray-Marching/blob/master/Assets/Scripts/SDF/Raymarching.compute)
+float sphereDistance(vec3 eye, vec3 centre, float radius) {
+    return distance(eye, centre) - radius;
+}
+// polynomial smooth min (k = 0.1);
+// from https://www.iquilezles.org/www/articles/smin/smin.htm
 vec4 blend(float a, float b, vec3 colA, vec3 colB, float k ) {
     float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
     float blendDst = mix( b, a, h ) - k*h*(1.0-h);
     vec3 blendCol = mix(colB,colA,h);
     return vec4(blendCol, blendDst);
 }
-float sphereDistance(vec3 eye, vec3 centre, float radius) {
-    return distance(eye, centre) - radius;
-}
 // returns color, distance
 vec4 getSceneInfo(vec3 eye) {
 	if (sphere_buffer.spheres.length() == 0) { return vec4(0, 0, 0, MAX_DISTANCE); }
 
+	// blend all spheres
 	Sphere sphere = sphere_buffer.spheres[0];
 	vec4 currentBlend = vec4(sphere.color, sphereDistance(eye, sphere.position, sphere.radius));
 	for (int i = 1; i < sphere_buffer.spheres.length(); i++) {
 		Sphere sphere = sphere_buffer.spheres[i];
 		float distance = sphereDistance(eye, sphere.position, sphere.radius);
 		currentBlend = blend(currentBlend.w, distance, currentBlend.rgb, sphere.color, 0.5);
-		
-		// get minimum distance
-		// float distance = sphereDistance(eye, sphere.position, sphere.radius);
-		// if (distance < currentBlend.w) {
-		// 	currentBlend = vec4(sphere.color, distance);
-		// }
 	}
 	return currentBlend;
 }
@@ -89,7 +87,7 @@ Ray createCameraRay(vec2 uv) {
 
 // The code we want to execute in each invocation
 void main() {
-	// gl_GlobalInvocationID uniquely identifies this invocation across all work groups
+	// normalize the uv coordinates to be between -1 and 1
 	vec2 uv = gl_GlobalInvocationID.xy / vec2(output_resolution.vector) * 2 - 1;
 
 	Ray ray = createCameraRay(uv);
@@ -97,7 +95,7 @@ void main() {
 	float rayDistance = sceneInfo.w;
 	int numSteps = 0;
 	// ray march
-	while (rayDistance <= MAX_DISTANCE && numSteps < MAX_STEPS + MAX_STEPS_PER_UNIT * rayDistance && abs(sceneInfo.a) >= MIN_DISTANCE) {
+	while (rayDistance <= MAX_DISTANCE && numSteps < MAX_STEPS && abs(sceneInfo.a) >= MIN_DISTANCE) {
 		sceneInfo = getSceneInfo(ray.origin);
 		ray.origin += ray.direction * sceneInfo.w;
 		rayDistance += sceneInfo.w;
@@ -113,10 +111,7 @@ void main() {
 		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 0, 0, 0));
 	}
 	// if we have hit the maximum number of steps, write white (outlines the object)
-	else {
+	else if (numSteps >= MAX_STEPS && DRAW_OUTLINE) {
 		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 1, 0, 1));
 	}
-
-	// imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(1.0*numSteps/MAX_STEPS_PER_UNIT, 1.0*rayDistance/MAX_DISTANCE, 1.0*MIN_DISTANCE/abs(sceneInfo.a), 1));
-	// imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(sceneInfo));
 }
