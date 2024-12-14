@@ -7,7 +7,7 @@ signal gpu_sync(texture: ImageTexture)
 # Spheres: [<x, y, z>, radius, <r, g, b>]
 @export var sphere_arrays: Array[Array] = [
 	[Vector3(-1, 0, -5), 0.5, Vector3(1, 0, 0)],
-	[Vector3(0, 0, -5), 0.5, Vector3(0, 0, 0)],
+	[Vector3(0, 0, -5), 0.5, Vector3(1, 1, 0)],
 	[Vector3(-1, 1, -5), 0.5, Vector3(1, 0, 1)],
 	[Vector3(0, 1, -5), 0.5, Vector3(0, 0, 1)],
 	[Vector3(0, 2, -4), 1, Vector3(0, 1, 1)],

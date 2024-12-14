@@ -2,10 +2,10 @@
 #version 450
 
 // Constants (adjust as needed)
-#define MAX_DISTANCE 200
-#define MIN_DISTANCE 0.005
+#define MAX_DISTANCE 100
+#define MIN_DISTANCE 0.001
 // Shadow offset is how far to move the shadow ray origin from surface to avoid self-shadowing
-#define SHADOW_OFFSET_MULTIPLIER 25
+#define SHADOW_OFFSET_MULTIPLIER 50
 #define AMBIENT_LIGHT 0.15 // 0 to 1
 // a lower max_steps and outline_min_steps results in a thicker outline
 #define MAX_STEPS 35
@@ -150,17 +150,22 @@ void main() {
 		numSteps++;
 	}
 
+	// default to transparent black
+	imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 0, 0, 0));
 	// if we have hit something, write the color to the output texture
 	if (sceneInfo.a < MIN_DISTANCE) {
 		float brightness = calculateBrightness(ray.origin);
 		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(brightness * sceneInfo.rgb, 1));
+
+		// draw outline over the object
+		if (numSteps >= OUTLINE_MIN_STEPS && DRAW_OUTLINE) {
+			vec4 newColor = vec4(0, 1, 0, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS));
+			newColor = mix(newColor, vec4(brightness * sceneInfo.rgb, 1), 1 - newColor.a);
+			imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), newColor);
+		}
 	}
-	// if we have hit the maximum number of steps, write white (outlines the object)
+	// if we have hit the maximum number of steps, draw object outline
 	else if (numSteps >= OUTLINE_MIN_STEPS && DRAW_OUTLINE) {
 		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 1, 0, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS)));
-	}
-	// if we have not hit anything, write transparent to the output texture
-	else {
-		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 0, 0, 0));
 	}
 }
