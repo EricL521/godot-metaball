@@ -12,6 +12,11 @@ signal gpu_sync(texture: ImageTexture)
 	[Vector3(0, 1, -5), 0.5, Vector3(0, 0, 1)],
 	[Vector3(0, 2, -4), 1, Vector3(0, 1, 1)],
 	[Vector3(-3, -1, -5), 1, Vector3(1, 1, 1)],
+	[Vector3(0, 0, -15), 5, Vector3(0, 0, 0.5)],
+]
+# Lights: [<x, y, z>, brigtness]
+@export var light_arrays: Array[Array] = [
+	[Vector3(0, 0, 0), 4],
 ]
 @export var image_size: Vector2i = Vector2i(1000, 1000)
 
@@ -27,6 +32,7 @@ var image_buffer: RID
 var image_size_buffer: RID
 var camera_to_world_buffer: RID
 var camera_inverse_projection_buffer: RID
+var lights_buffer: RID
 var spheres_buffer: RID
 func get_camera_to_world_data() -> PackedFloat32Array:
 	var matrix_data = PackedFloat32Array()
@@ -101,6 +107,16 @@ func init_buffer_data():
 	var camera_inverse_projection_data = get_camera_inverse_projection_data(camera.get_camera_projection()).to_byte_array()
 	camera_inverse_projection_buffer = rd.uniform_buffer_create(camera_inverse_projection_data.size(), camera_inverse_projection_data)
 	
+	var packed_lights_arrays = PackedFloat32Array()
+	for light_array in light_arrays:
+		for val in light_array:
+			if val is float or val is int:
+				packed_lights_arrays.append(val)
+			elif val is Vector3:
+				packed_lights_arrays.append_array(PackedFloat32Array([val.x, val.y, val.z]))
+	var lights_data = packed_lights_arrays.to_byte_array()
+	lights_buffer = rd.storage_buffer_create(lights_data.size(), lights_data)
+	
 	var packed_sphere_arrays = PackedFloat32Array()
 	for sphere_array in sphere_arrays:
 		for val in sphere_array:
@@ -144,7 +160,8 @@ func run_shader() -> void:
 	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_UNIFORM_BUFFER, image_size_buffer, 1)
 	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_UNIFORM_BUFFER, camera_to_world_buffer, 2)
 	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_UNIFORM_BUFFER, camera_inverse_projection_buffer, 3)
-	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, spheres_buffer, 4)
+	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, lights_buffer, 4)
+	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, spheres_buffer, 5)
 	
 	rd.compute_list_dispatch(compute_list, image_size.x, image_size.y, 1)
 	rd.compute_list_end()

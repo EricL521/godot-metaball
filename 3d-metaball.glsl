@@ -3,11 +3,14 @@
 
 // Constants (adjust as needed)
 #define MAX_DISTANCE 200
-#define MIN_DISTANCE 0.01
+#define MIN_DISTANCE 0.005
+// Shadow offset is how far to move the shadow ray origin from surface to avoid self-shadowing
+#define SHADOW_OFFSET_MULTIPLIER 25
+#define AMBIENT_LIGHT 0.15 // 0 to 1
 // a lower max_steps and outline_min_steps results in a thicker outline
-#define MAX_STEPS 40
+#define MAX_STEPS 35
 // outline_min_steps is for outline to be slightly blurred
-#define OUTLINE_MIN_STEPS 25
+#define OUTLINE_MIN_STEPS 30
 #define DRAW_OUTLINE true
 
 // Structs
@@ -20,6 +23,10 @@ struct Sphere {
 	float radius;
 	vec3 color;
 	// float paddingByte;
+};
+struct Light {
+	vec3 position;
+	float intensity;
 };
 
 // Invocations in the (x, y, z) dimension
@@ -41,7 +48,11 @@ layout(set = 3, binding = 3) uniform CameraInverseProjection {
 	mat4 matrix;
 } camera_inverse_projection;
 
-layout(set = 4, binding = 4, std430) readonly buffer SphereBuffer {
+layout(set = 4, binding = 4, std430) readonly buffer LightBuffer {
+	Light lights[];
+} light_buffer;
+
+layout(set = 5, binding = 5, std430) readonly buffer SphereBuffer {
 	Sphere spheres[];
 } sphere_buffer;
 
@@ -85,6 +96,41 @@ Ray createCameraRay(vec2 uv) {
     direction = normalize(direction);
     return createRay(origin,direction);
 }
+vec3 estimateNormal(vec3 p) {
+	float epsilon = SHADOW_OFFSET_MULTIPLIER * MIN_DISTANCE;
+    float x = getSceneInfo(vec3(p.x+epsilon,p.y,p.z)).w - getSceneInfo(vec3(p.x-epsilon,p.y,p.z)).w;
+    float y = getSceneInfo(vec3(p.x,p.y+epsilon,p.z)).w - getSceneInfo(vec3(p.x,p.y-epsilon,p.z)).w;
+    float z = getSceneInfo(vec3(p.x,p.y,p.z+epsilon)).w - getSceneInfo(vec3(p.x,p.y,p.z-epsilon)).w;
+    return normalize(vec3(x,y,z));
+}
+float calculateBrightness(vec3 origin) {
+	vec3 normal = estimateNormal(origin);
+	origin += normal * MIN_DISTANCE * SHADOW_OFFSET_MULTIPLIER;
+
+	float shadow = 1 - AMBIENT_LIGHT;
+	for (int i = 0; i < light_buffer.lights.length(); i ++) {
+		Light light = light_buffer.lights[i];
+		vec3 lightDirection = normalize(light.position - origin);
+		float lightDistance = distance(origin, light.position);
+		Ray shadowRay = createRay(origin, lightDirection);
+
+		// ray march towards light
+		vec4 sceneInfo = getSceneInfo(shadowRay.origin);
+		float rayDistance = sceneInfo.w;
+		// brightness multiplier is used to add shadow blur
+		float brightnessMultiplier = min(1, sceneInfo.w / (MIN_DISTANCE * SHADOW_OFFSET_MULTIPLIER));
+		while (sceneInfo.w >= MIN_DISTANCE && rayDistance < lightDistance) {
+			shadowRay.origin += shadowRay.direction * sceneInfo.w;
+			sceneInfo = getSceneInfo(shadowRay.origin);
+			brightnessMultiplier = min(brightnessMultiplier, sceneInfo.w / (MIN_DISTANCE * SHADOW_OFFSET_MULTIPLIER));
+			rayDistance += sceneInfo.w;
+		}
+		if (rayDistance >= lightDistance) {
+			shadow *= max(1 - (max(dot(normal, lightDirection), 0) * brightnessMultiplier * light.intensity), 0);
+		}
+	}
+	return 1 - shadow;
+}
 
 
 // The code we want to execute in each invocation
@@ -97,16 +143,17 @@ void main() {
 	float rayDistance = sceneInfo.w;
 	int numSteps = 0;
 	// ray march
-	while (rayDistance <= MAX_DISTANCE && numSteps < MAX_STEPS && abs(sceneInfo.a) >= MIN_DISTANCE) {
-		sceneInfo = getSceneInfo(ray.origin);
+	while (rayDistance <= MAX_DISTANCE && numSteps < MAX_STEPS && abs(sceneInfo.w) >= MIN_DISTANCE) {
 		ray.origin += ray.direction * sceneInfo.w;
+		sceneInfo = getSceneInfo(ray.origin);
 		rayDistance += sceneInfo.w;
 		numSteps++;
 	}
 
 	// if we have hit something, write the color to the output texture
 	if (sceneInfo.a < MIN_DISTANCE) {
-		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(sceneInfo.rgb, 1));
+		float brightness = calculateBrightness(ray.origin);
+		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(brightness * sceneInfo.rgb, 1));
 	}
 	// if we have hit the maximum number of steps, write white (outlines the object)
 	else if (numSteps >= OUTLINE_MIN_STEPS && DRAW_OUTLINE) {
