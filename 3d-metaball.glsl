@@ -4,8 +4,10 @@
 // Constants (adjust as needed)
 #define MAX_DISTANCE 200
 #define MIN_DISTANCE 0.01
-// a lower max_steps results in a thicker outline
-#define MAX_STEPS 25
+// a lower max_steps and outline_min_steps results in a thicker outline
+#define MAX_STEPS 40
+// outline_min_steps is for outline to be slightly blurred
+#define OUTLINE_MIN_STEPS 25
 #define DRAW_OUTLINE true
 
 // Structs
@@ -106,12 +108,12 @@ void main() {
 	if (sceneInfo.a < MIN_DISTANCE) {
 		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(sceneInfo.rgb, 1));
 	}
-	// if we have not hit anything, write transparent to the output texture
-	else if (rayDistance > MAX_DISTANCE) {
-		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 0, 0, 0));
-	}
 	// if we have hit the maximum number of steps, write white (outlines the object)
-	else if (numSteps >= MAX_STEPS && DRAW_OUTLINE) {
-		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 1, 0, 1));
+	else if (numSteps >= OUTLINE_MIN_STEPS && DRAW_OUTLINE) {
+		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 1, 0, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS)));
+	}
+	// if we have not hit anything, write transparent to the output texture
+	else {
+		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 0, 0, 0));
 	}
 }
