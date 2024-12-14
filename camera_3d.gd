@@ -13,17 +13,17 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if mouse_captured:
 		if Input.is_action_pressed("move_forward"):
-			global_translate(-global_transform.basis.z * movement_speed * delta)
+			global_translate(-Vector3(global_transform.basis.z.x, 0, global_transform.basis.z.z).normalized() * movement_speed * delta)
 		if Input.is_action_pressed("move_back"):
-			global_translate(global_transform.basis.z * movement_speed * delta)
+			global_translate(Vector3(global_transform.basis.z.x, 0, global_transform.basis.z.z).normalized() * movement_speed * delta)
 		if Input.is_action_pressed("move_left"):
-			global_translate(-global_transform.basis.x * movement_speed * delta)
+			global_translate(-Vector3(global_transform.basis.x.x, 0, global_transform.basis.x.z).normalized() * movement_speed * delta)
 		if Input.is_action_pressed("move_right"):
-			global_translate(global_transform.basis.x * movement_speed * delta)
+			global_translate(Vector3(global_transform.basis.x.x, 0, global_transform.basis.x.z).normalized() * movement_speed * delta)
 		if Input.is_action_pressed("move_up"):
-			global_translate(-global_transform.basis.y * movement_speed * delta)
+			global_translate(-Vector3.UP * movement_speed * delta)
 		if Input.is_action_pressed("move_down"):
-			global_translate(global_transform.basis.y * movement_speed * delta)
+			global_translate(Vector3.UP * movement_speed * delta)
 	
 func _input(event):
 	if event is InputEventMouseMotion and mouse_captured:
