@@ -2,10 +2,11 @@
 #version 450
 
 // Constants (adjust as needed)
+#define NOISE_MULTIPLIER 1
 #define MAX_DISTANCE 100
-#define MIN_DISTANCE 0.005
+#define MIN_DISTANCE 0.001
 // Shadow offset is how far to move the shadow ray origin from surface to avoid self-shadowing
-#define SHADOW_OFFSET_MULTIPLIER 10
+#define SHADOW_OFFSET_MULTIPLIER 50
 #define AMBIENT_LIGHT 0.15 // 0 to 1
 // a lower max_steps and outline_min_steps results in a thicker outline
 #define MAX_STEPS 35
@@ -59,6 +60,9 @@ layout(set = 5, binding = 5, std430) readonly buffer SphereBuffer {
 
 
 // Helper functions (most from https://github.com/SebLague/Ray-Marching/blob/master/Assets/Scripts/SDF/Raymarching.compute)
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
 float sphereDistance(vec3 eye, vec3 centre, float radius) {
     return distance(eye, centre) - radius;
 }
@@ -95,6 +99,7 @@ Ray createCameraRay(vec2 uv) {
     vec3 direction = (camera_inverse_projection.matrix * vec4(uv,0,1)).xyz;
     direction = (camera_to_world.matrix * vec4(direction,0)).xyz;
     direction = normalize(direction);
+	origin += rand(uv + origin.xy + origin.yz + direction.xy + direction.yz) * 0.001 * NOISE_MULTIPLIER;
     return createRay(origin,direction);
 }
 vec3 estimateNormal(vec3 p) {
