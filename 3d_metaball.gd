@@ -11,6 +11,7 @@ signal gpu_sync(texture: ImageTexture)
 	[Vector3(-1, 1, -5), 0.5, Vector3(1, 0, 1)],
 	[Vector3(0, 1, -5), 0.5, Vector3(0, 0, 1)],
 	[Vector3(0, 2, -4), 1, Vector3(0, 1, 1)],
+	[Vector3(0, 3, -4), 0.5, Vector3(1, 0.5, 0.5)],
 	[Vector3(-3, -1, -5), 1, Vector3(1, 1, 1)],
 	[Vector3(0, 0, -15), 5, Vector3(0, 0, 0.5)],
 ]

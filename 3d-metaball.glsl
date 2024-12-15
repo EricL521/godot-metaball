@@ -3,15 +3,16 @@
 
 // Constants (adjust as needed)
 #define MAX_DISTANCE 100
-#define MIN_DISTANCE 0.001
+#define MIN_DISTANCE 0.005
 // Shadow offset is how far to move the shadow ray origin from surface to avoid self-shadowing
-#define SHADOW_OFFSET_MULTIPLIER 50
+#define SHADOW_OFFSET_MULTIPLIER 10
 #define AMBIENT_LIGHT 0.15 // 0 to 1
 // a lower max_steps and outline_min_steps results in a thicker outline
 #define MAX_STEPS 35
 // outline_min_steps is for outline to be slightly blurred
 #define OUTLINE_MIN_STEPS 30
 #define DRAW_OUTLINE true
+#define OUTLINE_COLOR vec3(1, 1, 0.8)
 
 // Structs
 struct Ray {
@@ -159,13 +160,13 @@ void main() {
 
 		// draw outline over the object
 		if (numSteps >= OUTLINE_MIN_STEPS && DRAW_OUTLINE) {
-			vec4 newColor = vec4(0, 1, 0, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS));
+			vec4 newColor = vec4(OUTLINE_COLOR, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS));
 			newColor = mix(newColor, vec4(brightness * sceneInfo.rgb, 1), 1 - newColor.a);
 			imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), newColor);
 		}
 	}
 	// if we have hit the maximum number of steps, draw object outline
 	else if (numSteps >= OUTLINE_MIN_STEPS && DRAW_OUTLINE) {
-		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(0, 1, 0, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS)));
+		imageStore(output_texture, ivec2(gl_GlobalInvocationID.xy), vec4(OUTLINE_COLOR, 1.0 * (numSteps - OUTLINE_MIN_STEPS) / (MAX_STEPS - OUTLINE_MIN_STEPS)));
 	}
 }
