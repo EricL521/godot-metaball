@@ -93,13 +93,13 @@ func generate_bvh_grid(size: Vector3, base_pos: Vector3, sphere_indices: Array[i
 		bvh_tree[index][4] = generate_bvh_grid(right_size, right_position, right_sphere_indices)
 		
 		return index
-func generate_sphere_grid(size: Vector3, position: Vector3) -> Array[int]:
+func generate_sphere_grid(size: Vector3, base_pos: Vector3) -> Array[int]:
 	var sphere_indices: Array[int] = []
 	for i in range(size.x):
 		for j in range(size.y):
 			for k in range(size.z):
 				sphere_indices.append(sphere_arrays.size())
-				sphere_arrays.append([Vector3(position.x + i, position.y + j, position.z + k), 
+				sphere_arrays.append([Vector3(base_pos.x + i, base_pos.y + j, base_pos.z + k), 
 					0.5, Vector3(float(i)/size.x, float(j)/size.y, float(k)/size.z)])
 	return sphere_indices
 var image_buffer: RID
@@ -219,7 +219,6 @@ func _ready() -> void:
 	if sphere_arrays.size() == 0:
 		generate_bvh_grid(Vector3(grid_size), Vector3(-1, -1, -5), \
 			generate_sphere_grid(Vector3(grid_size), Vector3(-1, -1, -5)))
-	print(bvh_tree)
 	
 	_shader_spirv = shader_file.get_spirv()
 	rd = RenderingServer.create_local_rendering_device()
