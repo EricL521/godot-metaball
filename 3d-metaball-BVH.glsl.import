@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bo628wrl8l2uv"
+path="res://.godot/imported/3d-metaball-BVH.glsl-9595149a331d8ad599dc841cd6d00df6.res"
+
+[deps]
+
+source_file="res://3d-metaball-BVH.glsl"
+dest_files=["res://.godot/imported/3d-metaball-BVH.glsl-9595149a331d8ad599dc841cd6d00df6.res"]
+
+[params]
+

@@ -2,6 +2,7 @@ extends Camera3D
 
 @export var movement_speed: int = 1
 @export var rotate_speed: int = 1
+@export var zoom_multiplier: float = 1.25
 
 @onready var mouse_captured: bool = false
 
@@ -30,8 +31,12 @@ func _process(delta: float) -> void:
 	
 func _input(event):
 	if event is InputEventMouseMotion and mouse_captured:
-		global_rotate(Vector3.UP, - event.relative.x * rotate_speed / 500)
-		global_rotate(global_transform.basis.x, event.relative.y * rotate_speed / 500)
+		global_rotate(Vector3.UP, - event.relative.x * rotate_speed * fov / 50000)
+		global_rotate(global_transform.basis.x, event.relative.y * rotate_speed * fov / 50000)
+	if mouse_captured and event.is_action_pressed("zoom_in"):
+		fov /= zoom_multiplier
+	if mouse_captured and event.is_action_pressed("zoom_out"):
+		fov = min(fov * zoom_multiplier, 170)
 	if mouse_captured and event.is_action_pressed("escape"):
 		mouse_captured = false
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)

@@ -6,15 +6,37 @@ signal gpu_sync(texture: ImageTexture)
 @export var shader_file: Resource
 # Spheres: [<x, y, z>, radius, <r, g, b>]
 @export var sphere_arrays: Array[Array] = [
-	[Vector3(-1, 0, -5), 0.5, Vector3(1, 0, 0)],
-	[Vector3(0, 0, -5), 0.5, Vector3(1, 1, 0)],
-	[Vector3(-1, 1, -5), 0.5, Vector3(1, 0, 1)],
-	[Vector3(0, 1, -5), 0.5, Vector3(0, 0, 1)],
-	[Vector3(0, 2, -4), 1, Vector3(0, 1, 1)],
-	[Vector3(0, 3, -4), 0.5, Vector3(1, 0.5, 0.5)],
-	[Vector3(-3, -1, -5), 1, Vector3(1, 1, 1)],
-	[Vector3(0, 0, -15), 5, Vector3(0, 0, 0.5)],
+	#[Vector3(-1, -1, -5), 0.5, Vector3(1, 0, 0.5)],
+	#[Vector3(-1, 0, -5), 0.5, Vector3(1, 0.5, 0.5)],
+	#[Vector3(-1, 1, -5), 0.5, Vector3(1, 1, 0.5)],
+	#[Vector3(0, -1, -5), 0.5, Vector3(0.5, 0, 0.5)],
+	#[Vector3(0, 0, -5), 0.5, Vector3(0.5, 0.5, 0.5)],
+	#[Vector3(0, 1, -5), 0.5, Vector3(0.5, 1, 0.5)],
+	#[Vector3(1, -1, -5), 0.5, Vector3(0, 0, 0.5)],
+	#[Vector3(1, 0, -5), 0.5, Vector3(0, 0.5, 0.5)],
+	#[Vector3(1, 1, -5), 0.5, Vector3(0, 1, 0.5)],
 ]
+# Each node: [<x, y, z>, <sizeX, sizeY, sizeZ>, sphereIndex, leftNodeIndex, rightNodeIndex]
+@export var bvh_tree: Array[Array] = [
+	#[Vector3(-1.5, -1.5, -5.5), Vector3(3, 3, 1), -1, 1, 6],
+	#[Vector3(-1.5, -1.5, -5.5), Vector3(1, 3, 1), -1, 2, 3],
+	#[Vector3(-1.5, -1.5, -5.5), Vector3(1, 1, 1), 0, -1, -1],
+	#[Vector3(-1.5, -0.5, -5.5), Vector3(1, 2, 1), -1, 4, 5],
+	#[Vector3(-1.5, -0.5, -5.5), Vector3(1, 1, 1), 1, -1, -1],
+	#[Vector3(-1.5, 0.5, -5.5), Vector3(1, 1, 1), 2, -1, -1],
+	#[Vector3(-0.5, -1.5, -5.5), Vector3(2, 3, 1), -1, 7, 12],
+	#[Vector3(-0.5, -1.5, -5.5), Vector3(1, 3, 1), -1, 8, 9],
+	#[Vector3(-0.5, -1.5, -5.5), Vector3(1, 1, 1), 3, -1, -1],
+	#[Vector3(-0.5, -0.5, -5.5), Vector3(1, 2, 1), -1, 10, 11],
+	#[Vector3(-0.5, -0.5, -5.5), Vector3(1, 1, 1), 4, -1, -1],
+	#[Vector3(-0.5, 0.5, -5.5), Vector3(1, 1, 1), 5, -1, -1],
+	#[Vector3(0.5, -1.5, -5.5), Vector3(1, 3, 1), -1, 13, 14],
+	#[Vector3(0.5, -1.5, -5.5), Vector3(1, 1, 1), 6, -1, -1],
+	#[Vector3(0.5, -0.5, -5.5), Vector3(1, 2, 1), -1, 15, 16],
+	#[Vector3(0.5, -0.5, -5.5), Vector3(1, 1, 1), 7, -1, -1],
+	#[Vector3(0.5, 0.5, -5.5), Vector3(1, 1, 1), 8, -1, -1],
+]
+@export var grid_size: Vector3 = Vector3(4, 4, 1)
 # Lights: [<x, y, z>, brigtness]
 @export var light_arrays: Array[Array] = [
 	[Vector3(0, 0, 0), 4],
@@ -29,12 +51,64 @@ const GPU_SYNC_WAIT = 0
 var _shader_spirv: RDShaderSPIRV
 var rd: RenderingDevice
 
+# Modifies bvh_tree
+# Returns a bvh index
+func generate_bvh_grid(size: Vector3, base_pos: Vector3, sphere_indices: Array[int]) -> int:
+	if size.x == 1 and size.y == 1 and size.z == 1:
+		bvh_tree.append([base_pos - Vector3(0.5, 0.5, 0.5), size, sphere_indices[0], -1, -1])
+		return bvh_tree.size() - 1
+	else:
+		var index: int = bvh_tree.size()
+		bvh_tree.append([base_pos - Vector3(0.5, 0.5, 0.5), size, -1, -1, -1])
+		
+		var left_size: Vector3
+		var left_position: Vector3 = base_pos
+		var right_size: Vector3
+		var right_position: Vector3
+		if size.z >= size.y and size.z >= size.x:
+			left_size = Vector3(size.x, size.y, floor(size.z/2))
+			right_size = Vector3(size.x, size.y, ceil(size.z/2))
+			right_position = base_pos + Vector3(0, 0, floor(size.z/2))
+		elif size.y >= size.x:
+			left_size = Vector3(size.x, floor(size.y/2), size.z)
+			right_size = Vector3(size.x, ceil(size.y/2), size.z)
+			right_position = base_pos + Vector3(0, floor(size.y/2), 0)
+		else:
+			left_size = Vector3(floor(size.x/2), size.y, size.z)
+			right_size = Vector3(ceil(size.x/2), size.y, size.z)
+			right_position = base_pos + Vector3(floor(size.x/2), 0, 0)
+		
+		var left_sphere_indices: Array[int]
+		var right_sphere_indices: Array[int]
+		for sphere_index in sphere_indices:
+			var sphere_array = sphere_arrays[sphere_index]
+			if sphere_array[0].x >= left_position.x and sphere_array[0].x < left_position.x + left_size.x \
+					and sphere_array[0].y >= left_position.y and sphere_array[0].y < left_position.y + left_size.y \
+					and sphere_array[0].z >= left_position.z and sphere_array[0].z < left_position.z + left_size.z:
+				left_sphere_indices.append(sphere_index)
+			else:
+				right_sphere_indices.append(sphere_index)
+		
+		bvh_tree[index][3] = generate_bvh_grid(left_size, left_position, left_sphere_indices)
+		bvh_tree[index][4] = generate_bvh_grid(right_size, right_position, right_sphere_indices)
+		
+		return index
+func generate_sphere_grid(size: Vector3, position: Vector3) -> Array[int]:
+	var sphere_indices: Array[int] = []
+	for i in range(size.x):
+		for j in range(size.y):
+			for k in range(size.z):
+				sphere_indices.append(sphere_arrays.size())
+				sphere_arrays.append([Vector3(position.x + i, position.y + j, position.z + k), 
+					0.5, Vector3(float(i)/size.x, float(j)/size.y, float(k)/size.z)])
+	return sphere_indices
 var image_buffer: RID
 var image_size_buffer: RID
 var camera_to_world_buffer: RID
 var camera_inverse_projection_buffer: RID
 var lights_buffer: RID
 var spheres_buffer: RID
+var bvh_nodes_buffer: RID
 func get_camera_to_world_data() -> PackedFloat32Array:
 	var matrix_data = PackedFloat32Array()
 	
@@ -129,9 +203,24 @@ func init_buffer_data():
 		packed_sphere_arrays.append(0)
 	var spheres_data = packed_sphere_arrays.to_byte_array()
 	spheres_buffer = rd.storage_buffer_create(spheres_data.size(), spheres_data)
-
+	
+	var packed_bvh_tree = PackedFloat32Array()
+	for bvh_node in bvh_tree:
+		packed_bvh_tree.append_array(PackedFloat32Array([bvh_node[0].x, bvh_node[0].y, bvh_node[0].z]))
+		packed_bvh_tree.append(0)
+		packed_bvh_tree.append_array(PackedFloat32Array([bvh_node[1].x, bvh_node[1].y, bvh_node[1].z]))
+		packed_bvh_tree.append(0)
+		packed_bvh_tree.append_array(PackedFloat32Array([bvh_node[2], bvh_node[3], bvh_node[4]]))
+		packed_bvh_tree.append(0)
+	var bvh_tree_data = packed_bvh_tree.to_byte_array()
+	bvh_nodes_buffer = rd.storage_buffer_create(bvh_tree_data.size(), bvh_tree_data)
 
 func _ready() -> void:
+	if sphere_arrays.size() == 0:
+		generate_bvh_grid(Vector3(grid_size), Vector3(-1, -1, -5), \
+			generate_sphere_grid(Vector3(grid_size), Vector3(-1, -1, -5)))
+	print(bvh_tree)
+	
 	_shader_spirv = shader_file.get_spirv()
 	rd = RenderingServer.create_local_rendering_device()
 	init_buffer_data()
@@ -163,6 +252,7 @@ func run_shader() -> void:
 	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_UNIFORM_BUFFER, camera_inverse_projection_buffer, 3)
 	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, lights_buffer, 4)
 	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, spheres_buffer, 5)
+	add_buffer(compute_list, shader, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, bvh_nodes_buffer, 6)
 	
 	rd.compute_list_dispatch(compute_list, image_size.x, image_size.y, 1)
 	rd.compute_list_end()

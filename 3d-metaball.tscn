@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://3d_metaball.gd" id="1_2wg1n"]
 [ext_resource type="Script" path="res://camera_3d.gd" id="1_75wrd"]
 [ext_resource type="Script" path="res://3d-metaball-sprite.gd" id="1_ct7c3"]
-[ext_resource type="RDShaderFile" uid="uid://y8pcg2c4rade" path="res://3d-metaball.glsl" id="2_k7qko"]
+[ext_resource type="RDShaderFile" uid="uid://bo628wrl8l2uv" path="res://3d-metaball-BVH.glsl" id="2_pt361"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_gjach"]
 size = Vector2(1000, 1000)
@@ -11,7 +11,8 @@ size = Vector2(1000, 1000)
 [node name="MetaballTest" type="Node2D" node_paths=PackedStringArray("camera")]
 script = ExtResource("1_2wg1n")
 camera = NodePath("Camera3D")
-shader_file = ExtResource("2_k7qko")
+shader_file = ExtResource("2_pt361")
+grid_size = Vector3(10, 10, 1)
 
 [node name="Sprite2D" type="Sprite2D" parent="." node_paths=PackedStringArray("updater")]
 texture = SubResource("PlaceholderTexture2D_gjach")
